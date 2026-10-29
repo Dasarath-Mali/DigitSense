@@ -1,12 +1,36 @@
-out/
+# Build output
 target/
+out/
 *.class
+
+# IDE & Editor files
+.idea/
+*.iml
+*.ipr
+*.iws
 .vscode/
+.classpath
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+*.swp
 
 # Local runtime data
 data/digitsense.db
+data/digitsense.db-journal
 data/exports/
 data/preprocessed/
 data/canvas-samples/
 data/canvas-training/
 
+# Logs & temp files
+*.log
+target/args.txt

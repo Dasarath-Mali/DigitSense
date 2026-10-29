@@ -22,6 +22,10 @@ public class DatabaseManager {
     private static final String DATABASE_URL = "jdbc:sqlite:data/digitsense.db";
 
     public DatabaseManager() throws SQLException {
+        File dataDir = new File("data");
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
         createTables();
     }
 

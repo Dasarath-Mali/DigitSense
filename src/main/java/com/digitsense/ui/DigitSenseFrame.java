@@ -10,6 +10,7 @@ import com.digitsense.model.PredictionResult;
 
 import java.awt.BorderLayout;
 import java.awt.Button;
+import java.awt.CardLayout;
 import java.awt.Checkbox;
 import java.awt.Color;
 import java.awt.Choice;
@@ -19,6 +20,7 @@ import java.awt.EventQueue;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.FileDialog;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Label;
 import java.awt.Panel;
@@ -64,6 +66,14 @@ public class DigitSenseFrame extends Frame implements ActionListener {
     private BufferedImage lastProcessedImage;
     private int lastPredictionCount;
 
+    // ── New panels ──
+    private final QuickPredictPanel quickPredictPanel;
+    private final CompareModelsPanel compareModelsPanel;
+    private final Button viewCanvasButton;
+    private final Button viewCompareButton;
+    private final CardLayout centerCardLayout;
+    private final Panel centerCardPanel;
+
     public DigitSenseFrame() {
         super("DigitSense - Handwritten Digit Recognizer");
 
@@ -93,6 +103,14 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         historyList = new java.awt.List(8, false);
         digitModel = ModelFactory.loadAvailableModel();
 
+        // New components
+        quickPredictPanel = new QuickPredictPanel();
+        compareModelsPanel = new CompareModelsPanel(this);
+        viewCanvasButton = new Button("Drawing Canvas");
+        viewCompareButton = new Button("Compare Models");
+        centerCardLayout = new CardLayout();
+        centerCardPanel = new Panel(centerCardLayout);
+
         initializeDatabase();
         buildWindow();
         registerEvents();
@@ -112,16 +130,30 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(235, 240, 248));
 
+        // ── Top panel with prediction display ──
         Panel topPanel = new Panel(new GridLayout(3, 1));
         topPanel.setBackground(new Color(31, 52, 81));
         predictionLabel.setForeground(Color.WHITE);
-        predictionLabel.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 18));
+        predictionLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         alternativesLabel.setForeground(new Color(210, 225, 245));
         conversionLabel.setForeground(new Color(255, 220, 135));
         topPanel.add(predictionLabel);
         topPanel.add(alternativesLabel);
         topPanel.add(conversionLabel);
 
+        // ── Tab buttons ──
+        Panel tabPanel = new Panel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        tabPanel.setBackground(new Color(31, 52, 81));
+        applyTabStyle(viewCanvasButton, true);
+        applyTabStyle(viewCompareButton, false);
+        tabPanel.add(viewCanvasButton);
+        tabPanel.add(viewCompareButton);
+
+        Panel topBlock = new Panel(new BorderLayout());
+        topBlock.add(topPanel, BorderLayout.CENTER);
+        topBlock.add(tabPanel, BorderLayout.SOUTH);
+
+        // ── Bottom panel with controls ──
         Panel bottomPanel = new Panel(new FlowLayout(FlowLayout.CENTER));
         bottomPanel.setBackground(new Color(218, 228, 241));
         bottomPanel.add(new Label("Pen colour:"));
@@ -138,6 +170,7 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         bottomPanel.add(consentCheckbox);
         bottomPanel.add(correctButton);
 
+        // ── History sidebar (right) ──
         historyPanel = new Panel(new BorderLayout());
         historyPanel.setBackground(new Color(224, 232, 243));
         historyPanel.setPreferredSize(new Dimension(historyPanelWidth, 0));
@@ -145,18 +178,28 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         historyPanel.add(historyList, BorderLayout.CENTER);
         addResizableDivider(historyPanel);
 
-        Panel workspacePanel = new Panel(new BorderLayout(8, 0));
-        workspacePanel.setBackground(Color.WHITE);
-        workspacePanel.add(digitCanvas, BorderLayout.CENTER);
-        workspacePanel.add(historyPanel, BorderLayout.EAST);
+        // ── Card panel: Drawing canvas vs Compare models ──
+        Panel canvasWorkspace = new Panel(new BorderLayout(8, 0));
+        canvasWorkspace.setBackground(Color.WHITE);
+        canvasWorkspace.add(digitCanvas, BorderLayout.CENTER);
+        canvasWorkspace.add(historyPanel, BorderLayout.EAST);
 
-        add(topPanel, BorderLayout.NORTH);
+        centerCardPanel.add(canvasWorkspace, "canvas");
+        centerCardPanel.add(compareModelsPanel, "compare");
+
+        // ── Main workspace: QuickPredict on left + cards in center ──
+        Panel workspacePanel = new Panel(new BorderLayout(6, 0));
+        workspacePanel.setBackground(new Color(235, 240, 248));
+        workspacePanel.add(quickPredictPanel, BorderLayout.WEST);
+        workspacePanel.add(centerCardPanel, BorderLayout.CENTER);
+
+        add(topBlock, BorderLayout.NORTH);
         add(workspacePanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        setSize(600, 520);
+        setSize(950, 650);
         setLocationRelativeTo(null);
-        setMinimumSize(new java.awt.Dimension(760, 560));
+        setMinimumSize(new Dimension(900, 600));
         applyButtonStyle(predictButton, new Color(39, 116, 172));
         applyButtonStyle(clearButton, new Color(95, 108, 125));
         applyButtonStyle(saveButton, new Color(48, 137, 94));
@@ -167,6 +210,17 @@ public class DigitSenseFrame extends Frame implements ActionListener {
     private void applyButtonStyle(Button button, Color background) {
         button.setBackground(background);
         button.setForeground(Color.WHITE);
+    }
+
+    private void applyTabStyle(Button button, boolean active) {
+        if (active) {
+            button.setBackground(new Color(39, 116, 172));
+            button.setForeground(Color.WHITE);
+        } else {
+            button.setBackground(new Color(60, 80, 110));
+            button.setForeground(new Color(180, 195, 215));
+        }
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
     }
 
     /** Adds a draggable divider so the history sidebar can be resized at runtime. */
@@ -206,6 +260,18 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         exportButton.addActionListener(this);
         correctButton.addActionListener(this);
         penColorChoice.addItemListener(event -> digitCanvas.setPenColor(selectedPenColor()));
+
+        // Tab switching
+        viewCanvasButton.addActionListener(event -> {
+            centerCardLayout.show(centerCardPanel, "canvas");
+            applyTabStyle(viewCanvasButton, true);
+            applyTabStyle(viewCompareButton, false);
+        });
+        viewCompareButton.addActionListener(event -> {
+            centerCardLayout.show(centerCardPanel, "compare");
+            applyTabStyle(viewCanvasButton, false);
+            applyTabStyle(viewCompareButton, true);
+        });
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -492,4 +558,3 @@ public class DigitSenseFrame extends Frame implements ActionListener {
         }
     }
 }
-
